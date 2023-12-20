@@ -1,3 +1,2 @@
-# Grocery-Store-V2
-$$I have added some content.$$
-MAD-2 Project
+# Grocery-Store-V2  
+## MAD-2 Project
