@@ -4,4 +4,4 @@ class Config(object):
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///GroceryStore.db'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///GroceryStoreDb.sqlite3'

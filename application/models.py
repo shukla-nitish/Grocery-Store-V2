@@ -41,8 +41,8 @@ class Product(db.Model):
     description = db.Column(db.String(), nullable = False)
     unitDescription = db.Column(db.String(), nullable = False)
     img_path = db.Column(db.String(), nullable = False)
-    # visibility ..... using this admin can stop a product to get visible to customers.
-    # avg_rating
+    visible = db.Column(db.Boolean(), default = True)      # visibility ..... using this admin can stop a product to get visible to customers.
+    avg_rating = db.Column(db.Float())
 
     available_stock = db.relationship("Stock",backref = "product", cascade = "all, delete")
     reviews = db.relationship("ProdReview", backref = "product", cascade = "all, delete")
@@ -59,8 +59,8 @@ class Stock(db.Model):
     expiry = db.Column(db.Integer(), nullable = False)
     quantity = db.Column(db.Integer(), nullable = False)
     price = db.Column(db.Float(), nullable = False)
-    # threshold
-    # saleable
+    threshold = db.Column(db.Integer())
+    saleable = db.Column(db.Boolean(), default = True)
 
     db.UniqueConstraint(product_id,mfd)
 
@@ -120,7 +120,7 @@ class OrderItems(db.Model):
     order_id = db.Column(db.Integer, db.ForeignKey("order.id"), nullable = False)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable = False)
     quantity = db.Column(db.Integer(), nullable = False)
-    # unitDescription = db.Column(db.String(), nullable = False)
+    unitDescription = db.Column(db.String(), nullable = False)
     price = db.Column(db.Float(), nullable = False)
     discount = db.Column(db.Integer(), nullable = True)
 
