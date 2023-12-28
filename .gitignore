@@ -1,4 +1,4 @@
 venv
 .vscode
-__pychache__
+__pycache__
 application/__pycache__
