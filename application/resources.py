@@ -1,6 +1,8 @@
 from werkzeug.datastructures import FileStorage
 from flask_restful import Resource, Api, reqparse, marshal_with, marshal, fields
+from flask_security import auth_required, roles_required, current_user
 from application.models import *
+
 api = Api(prefix= "/api")
 
 
@@ -23,7 +25,8 @@ class UserApi(Resource):
 
 category_fields = {
     "name" : fields.String,
-    "img_path" : fields.String
+    "img_path" : fields.String,
+    "is_approved" : fields.Boolean
 }
 
 class CategoryAPI(Resource):
@@ -33,19 +36,28 @@ class CategoryAPI(Resource):
         self.parser_post.add_argument("img", type = FileStorage, required = True, location='files')
 
         self.parser_put = reqparse.RequestParser()
-        self.parser_put.add_argument("name", type = str, required = False ,location = "form")
+        self.parser_put.add_argument("name", type = str, location = "form")
         self.parser_put.add_argument("img", type = FileStorage, location='files')
-    
+        self.parser_put.add_argument("is_approved", type = bool, location = "form")
+
+    @auth_required("token")
     def get(self, ctg_name=None):
         if ctg_name is None:
-            categories = Category.query.all()
+            if "cust"in current_user.roles:
+                categories = Category.query.filter_by(is_approved = True)
+            else:
+                categories = Category.query.all()
+            if not categories:
+                return { "message" : "No category found"}, 404
             return marshal(categories, category_fields)
         
         ctg = Category.query.filter_by(name = ctg_name).first()
-        if not ctg:
+        if not ctg or ("cust"in current_user.roles and not ctg.is_approved):
             return {"message": "category {} does not exist.".format(ctg_name)}, 404
         return marshal(ctg, category_fields)
 
+    @auth_required("token")
+    @roles_required("mngr")
     def post(self):
         args = self.parser_post.parse_args()
         new_ctg = Category(name = args.get("name"), img_path = "/static/veg")
@@ -53,6 +65,8 @@ class CategoryAPI(Resource):
         db.session.commit()
         return {"message" : "New category created"}, 200
     
+    @auth_required("token")
+    @roles_required("admin","mngr")
     def put(self,ctg_name):
         args = self.parser_put.parse_args()
         ctg = Category.query.filter_by(name = ctg_name).first()
@@ -60,13 +74,18 @@ class CategoryAPI(Resource):
             return {"message": "category {} does not exist.".format(ctg_name)}, 404
         
         name = args.get("name")
-        file = args.get("img")
-        print(name, file)
+        img = args.get("img")
+        is_approved = args.get("is_approved")
 
-        if args.get("name"):
-            ctg.name = args.get("name")
-        if args.get("img") != None :
-            ctg.img_path = "/static/veg_new"
+        if "mngr" in current_user.roles:
+            if name:
+                ctg.name = name
+            if img != None :
+                ctg.img_path = "/static/veg_new"
+
+        if "admin" in current_user.roles:
+            if is_approved != None:
+                ctg.is_approved = is_approved
         
         db.session.commit()
         return {"message" : "Category successfully updated"}, 200
