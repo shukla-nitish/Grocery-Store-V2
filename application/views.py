@@ -10,7 +10,6 @@ from datetime import timedelta
 import matplotlib.pyplot as plt
 import csv
 import os
-# import flask_excel as excel
 # from celery.result import AsyncResult
 # from .tasks import create_resource_csv
 from .models import *
@@ -287,7 +286,11 @@ def cancel_ctg_delete(ctg_id):
     if not ctg:
         return jsonify({"message" : "Category not found."}), 404
     ctg.delete_request = False
-    return {"message": "Category deletion cancelled"}
+    try:
+        db.session.commit()
+        return {"message": "Category deletion cancelled"}
+    except:
+        return {"message" : "something went wrong"} , 500
 
 @auth_required("token")
 @roles_required("admin","mngr")

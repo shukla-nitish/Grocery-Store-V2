@@ -95,8 +95,12 @@ export default {
                         });
                         const ctg_data = await res.json();
                         if(res.ok){
-                            alert("Request sent for Approval from admin")
-                            this.$router.push(`/category/${this.ctg_name}`)
+                            if(this.ctg.is_approved){
+                                alert("Request sent for Approval from admin")
+                            }else{
+                                alert("Category Updated.")
+                            }
+                            this.$router.push(`/`)
                         }else{
                             console.log(ctg_data);
                             if ("message" in ctg_data){

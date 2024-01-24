@@ -135,6 +135,7 @@ export default {
                 if("message" in ctg_data){
                     alert(ctg_data.message);
                 }
+                this.$router.push("/")
             }
         }catch(err){
             console.error(err);
@@ -206,7 +207,7 @@ export default {
                 const ctg_data = await res.json();
                 if(res.ok){
                     this.$router.push(`/`);
-                    if(category.is_approved){
+                    if(this.category.is_approved){
                         alert("Request sent for Approval from admin");
                     }else{
                         alert("Category deleted Successfully.")

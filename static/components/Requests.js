@@ -49,48 +49,52 @@ export default {
     </div>
     <template v-if="edit_categories.length!=0">
     <div class="row justify-content-center">
-        <div v-for="category in edit_categories" class="col-2 text-center my-auto p-3">
-            <!-- card for each category -->
-            <div class="card border border-success-subtle">
-                <div class="card border border-success-subtle">
-                    <p class="text-center">Existing</p>
-                    <div class="card-body p-2 m-1 my-2">
+        <div v-for="category in edit_categories" class="col-3 m-2 border rounded border-success text-center my-auto">
+        <div class="row">
+            <div class="col-6 p-2">
+                <div class="card border border-success-subtle p-2">
+                    <div class="card-body">
+                        <p class="text-center text-decoration-underline">Existing</p>
                         <img class="text-center" style="width:125px;height:125px" :src="category.img_path" alt="category image">
-                        <h5 class="card-text py-1 m-0"><small>{{category.name}}</small></h5>            
+                        <h5 class="card-text py-1 m-0"><small>{{category.name}}</small></h5>          
                     </div>
                 </div>
-                <div class="card border border-success-subtle">
-                    <p class="text-center">New</p>
-                    <div class="card-body p-2 m-1 my-2">
+            </div>
+            <div class="col-6 p-2">
+                <div class="card border border-success-subtle p-2">
+                    <div class="card-body">
+                        <p class="text-center text-decoration-underline">Edits</p>
                         <img v-if="category.edited_img_path" class="text-center" style="width:125px;height:125px" :src="category.edited_img_path" alt="category image">
                         <h5 v-if="category.edited_name" class="card-text py-1 m-0"><small>{{category.edited_name}}</small></h5>            
+                        
                     </div>
                 </div>
-                <div class="row align-item-center">
-                    <div class="col justify-content-between">
-                        <button @click="approve_edit_category(category.category_id)" class="btn btn-primary">Approve</button>
-                        <button class="btn btn-danger" data-bs-toggle="modal" :data-bs-target="'#confirmationModal' + category.category_id">Cancel</button>
-                        <!-- Modal -->
-                        <div class="modal fade" :id="'confirmationModal' + category.category_id" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
-                            <div class="modal-dialog modal-dialog-centered">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Confirm Again</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <h5><small>Are you sure, you want to cancel edits of category {{category.name}}?</small></h5>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
-                                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal" @click="cancel_edit_category(category.category_id)">Yes</button>
-                                    </div>
+            </div>
+            <div class="row align-item-center p-2">
+                <div class="col justify-content-between">
+                    <button @click="approve_edit_category(category.category_id)" class="btn btn-primary me-1">Approve</button>
+                    <button class="btn btn-danger ms-1" data-bs-toggle="modal" :data-bs-target="'#confirmationModal' + category.category_id">Cancel</button>
+                    <!-- Modal -->
+                    <div class="modal fade" :id="'confirmationModal' + category.category_id" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Confirm Again</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <h5><small>Are you sure, you want to cancel edits of category {{category.name}}?</small></h5>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal" @click="cancel_edit_category(category.category_id)">Yes</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div> 
+            </div>
+        </div> 
         </div>
     </div>
     </template>

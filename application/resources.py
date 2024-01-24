@@ -1,5 +1,4 @@
 from werkzeug.datastructures import FileStorage
-# from flask import jsonify
 from flask_restful import Resource, Api, reqparse, marshal, fields
 from flask_security import auth_required, roles_required, roles_accepted, current_user
 from werkzeug.security import generate_password_hash
@@ -206,7 +205,7 @@ class CategoryAPI(Resource):
         if not name and not file:
             return {"message" : "Please provide values for one the fields."},400
         
-        if  not ctg.is_approved:
+        if not ctg.is_approved:
             if name:
                 ctg.name = name
 
@@ -241,8 +240,9 @@ class CategoryAPI(Resource):
 
                     
                     try :
+                        ctg.edit_request = True
                         db.session.commit()
-                        if prev_img_path:
+                        if prev_img_path != ctg.edited_img_path:
                             cwd = os.getcwd()
                             cwd = cwd.replace("\\","/")
                             path = cwd+prev_img_path
@@ -252,13 +252,13 @@ class CategoryAPI(Resource):
                         return {"message" : "Something went wrong."} , 500
                 else:
                     return {"message" : "Please upload correct image file."}, 400
-        try:
-            ctg.edit_request = True
-            db.session.commit()
-            return {"message" : "Category successfully updated"}, 200
-        except:
-            return {"message" : "something went wrong"} , 500
-    
+            try:
+                ctg.edit_request = True
+                db.session.commit()
+                return {"message" : "Edit request sent. Changes will come into effect after approval from admin."}, 200
+            except:
+                return {"message" : "something went wrong"} , 500
+        
     @auth_required("token")
     @roles_accepted("mngr","admin")
     def delete(self, ctg_name):
@@ -266,8 +266,12 @@ class CategoryAPI(Resource):
         if not ctg:
             return {"message": "category {} does not exist.".format(ctg_name)}, 404
         if ctg.is_approved:
-            ctg.delete.request = True
-            return {"message": "Delete request sent. Changes will come into effect after approval from admin."},200
+            ctg.delete_request = True
+            try:
+                db.session.commit()
+                return {"message": "Delete request sent. Changes will come into effect after approval from admin."},200
+            except:
+                return {"message" : "something went wrong"} , 500
         else:
             path1 = ""
             path2 = ""
