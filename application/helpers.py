@@ -5,6 +5,13 @@ from .models import db,Category, Product
 from datetime import datetime as dt
 from datetime import timedelta
 
+def string_to_date(str):
+    try:
+        date = dt.strptime(str, "%Y-%m-%d")
+        return date
+    except:
+        return False
+
 def allowed_file(filename):
     if '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
         return True

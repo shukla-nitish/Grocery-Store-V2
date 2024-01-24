@@ -1,6 +1,7 @@
 from main import app, datastore
 from application.models import db, Role
 from flask_security import hash_password
+from werkzeug.security import generate_password_hash
 with app.app_context():
     db.create_all()
     
@@ -10,9 +11,9 @@ with app.app_context():
     db.session.commit()
 
     if not datastore.find_user(email = "admin@email.com"):
-        datastore.create_user(name = "Admin", email = "admin@email.com", password = hash_password("admin"),roles = ["admin"])
+        datastore.create_user(name = "Admin", email = "admin@email.com", password = generate_password_hash("admin"),roles = ["admin"])
     if not datastore.find_user(email = "mngr1@email.com"):
-        datastore.create_user(name = "MNGR_1", email = "mngr1@email.com", password = hash_password("mngr1"), active = False, roles = ["mngr"])
+        datastore.create_user(name = "MNGR_1", email = "mngr1@email.com", password = generate_password_hash("mngr1"), active = True, roles = ["mngr"])
     if not datastore.find_user(email = "customer@email.com"):
-        datastore.create_user(name = "Customer", email = "customer@email.com", password = hash_password("customer"), roles = ["cust"])
+        datastore.create_user(name = "Customer", email = "customer@email.com", password = generate_password_hash("customer"), roles = ["cust"])
     db.session.commit()

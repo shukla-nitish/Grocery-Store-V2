@@ -36,6 +36,11 @@ class Category(db.Model):
     name = db.Column(db.String(50), nullable = False)
     img_path = db.Column(db.String(), nullable = False)
     is_approved = db.Column(db.Boolean(), default = False)
+    edit_request = db.Column(db.Boolean(),default = False)
+    edited_name = db.Column(db.String(50), nullable = True, default="")
+    edited_img_path = db.Column(db.String(), nullable = True,default="")
+    delete_request = db.Column(db.Boolean(),default = False)
+
     
     products = db.relationship("Product", backref = "category", cascade = "all, delete")
     
@@ -58,7 +63,7 @@ class Product(db.Model):
     orders = db.relationship("OrderItems", backref = "product") #cascade = "all, delete"
 
     def __repr__(self):
-        return "<Product %r %r>" % ( self.product_id,self.name )
+        return "<Product %r %r>" % ( self.id,self.name )
 
 class Stock(db.Model):
     id = db.Column(db.Integer(), primary_key = True)
@@ -105,6 +110,7 @@ class CartItems(db.Model):
     price = db.Column(db.Float(), nullable = False)
     # availability_status : in-stock, out-of-stock, insufficient-stock
     availability_status = db.Column(db.String(),nullable = False)
+    
     # discount = db.Column(db.Integer(), nullable = True)
 
     db.UniqueConstraint(cart_id,product_id)

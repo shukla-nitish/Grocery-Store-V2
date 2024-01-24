@@ -1,7 +1,8 @@
 from werkzeug.datastructures import FileStorage
 # from flask import jsonify
-from flask_restful import Resource, Api, reqparse, marshal_with, marshal, fields
-from flask_security import auth_required, roles_required, roles_accepted, current_user, hash_password
+from flask_restful import Resource, Api, reqparse, marshal, fields
+from flask_security import auth_required, roles_required, roles_accepted, current_user
+from werkzeug.security import generate_password_hash
 from application.models import *
 from .sec import datastore
 from email_validator import validate_email
@@ -17,6 +18,7 @@ class UserRole(fields.Raw):
         return roles[0].name
     
 user_fields = {
+    "user_id" : fields.Integer(attribute = "id"),
     "name" : fields.String,
     "email" : fields.String,
     "role" : UserRole(attribute="roles"),
@@ -26,14 +28,14 @@ user_fields = {
 class UserApi(Resource):
     def __init__(self):
         self.parser_post = reqparse.RequestParser()
-        self.parser_post.add_argument("name", type = str, required = True, location = "form")
-        self.parser_post.add_argument("email", type = str, required = True, location = "form")
-        self.parser_post.add_argument("password", type = str, required = True, location = "form")
-        self.parser_post.add_argument("role", type = str, required = True, location = "form")
+        self.parser_post.add_argument("name", type = str, required = True, location = "json")
+        self.parser_post.add_argument("email", type = str, required = True, location = "json")
+        self.parser_post.add_argument("password", type = str, required = True, location = "json")
+        self.parser_post.add_argument("role", type = str, required = True, location = "json")
 
         self.parser_put = reqparse.RequestParser()
-        self.parser_put.add_argument("name", type = str, help = "", location = "form")
-        self.parser_put.add_argument("password", type = str, location = "form")
+        self.parser_put.add_argument("name", type = str, help = "", location = "json")
+        self.parser_put.add_argument("password", type = str, location = "json")
 
     @auth_required("token")
     def get(self):
@@ -63,18 +65,25 @@ class UserApi(Resource):
         
         password = args.get("password")
         role = args.get("role")
+        
         if role not in ["manager", "customer"]:
             return {"message" : "Please specify correct role."}, 400
         
         if role == "manager":
-            datastore.create_user(name = name, email = email, password = hash_password(password), active = False, roles = ["mngr"])
+            datastore.create_user(name = name, email = email, password = generate_password_hash(password), active = False, roles = ["mngr"])
         
         if role == "customer":
-            datastore.create_user(name = name, email = email, password = hash_password(password), roles = ["cust"])
+            datastore.create_user(name = name, email = email, password = generate_password_hash(password), roles = ["cust"])
 
         try:
             db.session.commit()
-            return {"message" : "Account created successfully."}
+            user = datastore.find_user(email= email)
+            return {"message" : "Account created successfully.",
+                    "token": user.get_auth_token(),
+                    "user_id":user.id,
+                    "name" : user.name,
+                    "email": user.email,
+                    "role": user.roles[0].name}
         except:
             return {"message" : "Oops! Something went wrong."} , 500
     
@@ -87,7 +96,7 @@ class UserApi(Resource):
         if name:
             current_user.name = name
         if password:
-            current_user.password = hash_password(password)
+            current_user.password = generate_password_hash(password)
 
         try:
             db.session.commit()
@@ -96,19 +105,30 @@ class UserApi(Resource):
             return {"Something went wrong."} , 500
         
     @auth_required("token")
+    @roles_accepted("cust")
     def delete(self):
         datastore.delete_user(current_user)
         try:
             db.session.commit()
             return {"message": "Account deleted."}
         except:
-            return {"message" : "something went wrong"} , 500
+            return {"message" : "Something went wrong."} , 500
 
 category_fields = {
-    "id" : fields.Integer,
+    "category_id" : fields.Integer(attribute = "id"),
     "name" : fields.String,
     "img_path" : fields.String,
     "is_approved" : fields.Boolean
+}
+category_fields_admin= {
+    "category_id" : fields.Integer(attribute = "id"),
+    "name" : fields.String,
+    "img_path" : fields.String,
+    "is_approved" : fields.Boolean,
+    "edit_request": fields.Boolean,
+    "edited_name": fields.String,
+    "edited_img_path": fields.String,
+    "delete_request" : fields.Boolean,
 }
 
 class CategoryAPI(Resource):
@@ -120,22 +140,28 @@ class CategoryAPI(Resource):
         self.parser_put = reqparse.RequestParser()
         self.parser_put.add_argument("name", type = str, location = "form")
         self.parser_put.add_argument("img", type = FileStorage, location='files')
-        self.parser_put.add_argument("is_approved", type = bool, location = "form")
+        # self.parser_put.add_argument("is_approved", type = bool, location = "json")
 
-    @auth_required("token")
     def get(self, ctg_name=None):
-        if ctg_name is None:
-            if "cust"in current_user.roles:
-                categories = Category.query.filter_by(is_approved = True)
-            else:
+        if ctg_name == None:
+            if "mngr" in current_user.roles or "admin" in current_user.roles:
                 categories = Category.query.all()
-            if not categories:
-                return { "message" : "No category found"}, 404
-            return marshal(categories, category_fields)
+                if not categories:
+                    return { "message" : "No category found"}, 404
+                if "admin" in current_user.roles:
+                    return marshal(categories, category_fields_admin)
+                return marshal(categories, category_fields)
+            else:
+                categories = Category.query.filter_by(is_approved = True).all()
+                if not categories:
+                    return { "message" : "No category found"}, 404
+                return marshal(categories, category_fields)
         
         ctg = Category.query.filter_by(name = ctg_name).first()
-        if not ctg or ("cust"in current_user.roles and not ctg.is_approved):
-            return {"message": "category {} does not exist.".format(ctg_name)}, 404
+        if not ctg:
+            return {"message": "Category {} does not exist.".format(ctg_name)}, 404
+        if "mngr" not in current_user.roles and "admin" not in current_user.roles and not ctg.is_approved:
+            return {"message": "Category {} does not exist.".format(ctg_name)}, 404
         return marshal(ctg, category_fields)
 
     @auth_required("token")
@@ -168,7 +194,7 @@ class CategoryAPI(Resource):
             return {"message" : "Please upload correct image file."}, 400
     
     @auth_required("token")
-    @roles_accepted("admin","mngr")
+    @roles_accepted("mngr")
     def put(self,ctg_name):
         args = self.parser_put.parse_args()
         ctg = Category.query.filter_by(name = ctg_name).first()
@@ -177,15 +203,10 @@ class CategoryAPI(Resource):
         
         name = args.get("name")
         file = args.get("img")
-        is_approved = args.get("is_approved")
-
-        if "mngr" in current_user.roles:
-
-            if not name and not file :
-                if is_approved != None:
-                    return {"message" : "You are not authorised for category approval."}, 401
-                return {"message" : "missing values for update"}, 400
-
+        if not name and not file:
+            return {"message" : "Please provide values for one the fields."},400
+        
+        if  not ctg.is_approved:
             if name:
                 ctg.name = name
 
@@ -208,37 +229,69 @@ class CategoryAPI(Resource):
                         return {"message" : "Something went wrong."} , 500
                 else:
                     return {"message" : "Please upload correct image file."}, 400
+        else:
+            if name:
+                ctg.edited_name = name
 
-        if "admin" in current_user.roles:
+            if file :
+                if allowed_file(file.filename):
+                    FILENAME = save_file(file)
+                    prev_img_path = ctg.edited_img_path
+                    ctg.edited_img_path = "/static/"+ FILENAME
 
-            if is_approved is None:
-                return {"message" : "Please provide approval field."}, 400
-            
-            ctg.is_approved = is_approved
-
+                    
+                    try :
+                        db.session.commit()
+                        if prev_img_path:
+                            cwd = os.getcwd()
+                            cwd = cwd.replace("\\","/")
+                            path = cwd+prev_img_path
+                            os.remove(path)
+                        return {"message" : "Edit request sent. Changes will come into effect after approval from admin."}, 200
+                    except:
+                        return {"message" : "Something went wrong."} , 500
+                else:
+                    return {"message" : "Please upload correct image file."}, 400
         try:
+            ctg.edit_request = True
             db.session.commit()
             return {"message" : "Category successfully updated"}, 200
         except:
             return {"message" : "something went wrong"} , 500
     
     @auth_required("token")
-    @roles_required("admin")
+    @roles_accepted("mngr","admin")
     def delete(self, ctg_name):
         ctg = Category.query.filter_by(name = ctg_name).first()
         if not ctg:
             return {"message": "category {} does not exist.".format(ctg_name)}, 404
-        img_path = ctg.img_path
-        cwd = os.getcwd()
-        cwd = cwd.replace("\\","/")
-        path = cwd + img_path
-        try:
-            db.session.delete(ctg)
-            db.session.commit()
-            os.remove(path)
-            return { "message" : "category successfully deleted"}
-        except:
-            return {"message" : "something went wrong"} , 500
+        if ctg.is_approved:
+            ctg.delete.request = True
+            return {"message": "Delete request sent. Changes will come into effect after approval from admin."},200
+        else:
+            path1 = ""
+            path2 = ""
+
+            cwd = os.getcwd()
+            cwd = cwd.replace("\\","/")
+            if ctg.img_path:
+                path1 = cwd+ctg.img_path
+            if ctg.edited_img_path:
+                path2 = cwd+ctg.edited_img_path
+
+            try:
+                db.session.delete(ctg)
+                db.session.commit()
+                if ctg.img_path:
+                    print(path1)
+                    os.remove(path1)
+                if ctg.edited_img_path:
+                    print(path2)
+                    os.remove(path2)
+                
+                return { "message" : "category successfully deleted"}
+            except:
+                return {"message" : "something went wrong"} , 500
     
 class AvlQuantity(fields.Raw):
     def format(self,available_stock):
@@ -265,7 +318,7 @@ class StockId(fields.Raw):
         return stock_id
 
 product_fields = {
-    "id" : fields.Integer,
+    "product_id" : fields.Integer(attribute = "id"),
     "name" : fields.String,
     "category" : fields.String(attribute = "category.name"),
     "description": fields.String,
@@ -296,9 +349,14 @@ class ProductAPI(Resource):
     def get(self,ctg,prod = None):
         category = Category.query.filter_by(name = ctg).first()
         if not category or not category.is_approved:
+            if "mngr" in current_user.roles:
+                return 404
             return {"message" : "Category not found."}, 404
         if prod is None:
-            return marshal(category.products,product_fields)
+            prods = category.products
+            if not prods:
+                return {"message" : "No product found."}, 404
+            return marshal(prods,product_fields)
         
         product = Product.query.filter_by(name = prod).first()
         if not product or product.category != category :
@@ -329,7 +387,8 @@ class ProductAPI(Resource):
             try:
                 db.session.add(new_prod)
                 db.session.commit()
-                return {"message" : "Product successfully added."}
+                return {"message" : "Product successfully added.",
+                        "product_id" : new_prod.id}
             except:
                 return {"message" : "something went wrong."}, 500
         else:
@@ -358,7 +417,7 @@ class ProductAPI(Resource):
         if existing_prod.category != curr_category:
             return {"message" : "Product {} not found in category {}.".format(prod, curr_ctg)}, 404
 
-        if new_ctg is not None:
+        if new_ctg:
             new_category = Category.query.filter_by(name = new_ctg).first()
             if not new_category:
                 return {"message" : "Category {} doesn't exist.".format(new_ctg)}, 404
@@ -366,12 +425,13 @@ class ProductAPI(Resource):
             if curr_category.name != new_category.name :
                 existing_prod.category_id = new_category.id
         
-        if name is not None and name != existing_prod.name :
+        if name and name != existing_prod.name :
             existing_prod.name = name
-        if desc is not None and desc != existing_prod.description :
+        if desc and desc != existing_prod.description :
             existing_prod.description = desc
-        if unit_desc is not None and unit_desc != existing_prod.unitDescription :
+        if unit_desc and unit_desc != existing_prod.unitDescription :
             existing_prod.unitDescription = unit_desc
+            db.session.delete(existing_prod.available_stock)
         
         if file:
             if allowed_file(file.filename):
@@ -429,8 +489,9 @@ class ProductAPI(Resource):
 
 
 stock_fields = {
-    "id" : fields.Integer,
+    "stock_id" : fields.Integer(attribute = "id"),
     "product" : fields.String(attribute = "product.name"),
+    "category" : fields.String(attribute="product.category.name"),
     "mfd" : fields.String,
     "expiry_days" : fields.Integer(attribute = "expiry"),
     "quantity" : fields.Integer,
@@ -442,18 +503,18 @@ stock_fields = {
 class StockAPI(Resource):
     def __init__(self):
         self.parser_post = reqparse.RequestParser()
-        self.parser_post.add_argument("mfd", type = str, required = True, location = "form")
-        self.parser_post.add_argument("expiry_days", type = int, required = True, location = "form")
-        self.parser_post.add_argument("qty", type = int, required = True, location = "form")
-        self.parser_post.add_argument("price", type = float, required = True, location = "form")
-        self.parser_post.add_argument("threshold", type = int, required = True, location = "form")
+        self.parser_post.add_argument("mfd", type = str, required = True, location = "json")
+        self.parser_post.add_argument("expiry_days", type = int, required = True, location = "json")
+        self.parser_post.add_argument("qty", type = int, required = True, location = "json")
+        self.parser_post.add_argument("price", type = float, required = True, location = "json")
+        self.parser_post.add_argument("threshold", type = int, required = True, location = "json")
 
         self.parser_put = reqparse.RequestParser()
-        self.parser_put.add_argument("mfd", type = str, location = "form")
-        self.parser_put.add_argument("expiry_days", type = int, location = "form")
-        self.parser_put.add_argument("qty", type = int, location = "form")
-        self.parser_put.add_argument("price", type = float, location = "form")
-        self.parser_put.add_argument("threshold", type = int, location = "form")
+        self.parser_put.add_argument("mfd", type = str, location = "json")
+        self.parser_put.add_argument("expiry_days", type = int, location = "json")
+        self.parser_put.add_argument("qty", type = int, location = "json")
+        self.parser_put.add_argument("price", type = float, location = "json")
+        self.parser_put.add_argument("threshold", type = int, location = "json")
 
     def get(self, prod, stock_id = None):
         product = Product.query.filter_by(name = prod).first()
@@ -526,27 +587,30 @@ class StockAPI(Resource):
         price = args.get("price")
         threshold = args.get("threshold")
 
-        if mfd_ is None and exp_days is None and qty is None and price in None and threshold is None:
+        if not mfd_ and not exp_days and not qty and not price and not threshold:
             return {"message" : "No value passed for update"}, 400
 
         stock = Stock.query.get(stock_id)
         if not stock or stock.product != product :
             return {"message" : "stock not found"} , 404
         
-        if mfd_ is not None:
+        if mfd_:
             try:
                 mfd = dt.strptime(mfd_,"%Y-%m-%d")
             except:
                 return {"message" : "date format should be yyyy-mm-dd"}, 400
             if stock.mfd != mfd:
+                for stock_ in stock.product.available_stock:
+                    if stock_!=stock and stock_.mfd == mfd:
+                        return {"message" : "Stock with specified MFD already exists."}, 400
                 stock.mfd = mfd
-        if exp_days is not None and stock.expiry != exp_days:
+        if exp_days and stock.expiry != exp_days:
             stock.expiry = exp_days
-        if qty is not None and stock.quantity != qty:
+        if qty and stock.quantity != qty:
             stock.quantity = qty
-        if price is not None and stock.price != price :
+        if price and stock.price != price :
             stock.price = price
-        if threshold is not None and stock.threshold != threshold:
+        if threshold and stock.threshold != threshold:
             stock.threshold = threshold
         
         try:
@@ -571,11 +635,12 @@ class StockAPI(Resource):
             db.session.commit()
             return {"message" : "stock deleted successfully."}
         except:
-            return  {"message" : "Something went wrong."}
+            return  {"message" : "Something went wrong."},500
 
 prod_review_fields = {
-    "id" : fields.Integer,
+    "review_id" : fields.Integer(attribute = "id"),
     "user" : fields.String(attribute="user.name"),
+    "user_id" : fields.Integer(attribute="user.id"),
     "product": fields.String(attribute="product.name"),
     "comment" : fields.String,
     "rating" : fields.Integer,
@@ -585,16 +650,16 @@ prod_review_fields = {
 class ProdReviewAPI(Resource):
     def __init__(self):
         self.parser_post = reqparse.RequestParser()
-        self.parser_post.add_argument("product_id", type = int, required = True, location = "form")
-        self.parser_post.add_argument("comment", type = str, location = "form")
-        self.parser_post.add_argument("rating", type = int, required = True, location = "form")
+        self.parser_post.add_argument("product_id", type = int, required = True, location = "json")
+        self.parser_post.add_argument("comment", type = str, location = "json")
+        self.parser_post.add_argument("rating", type = int, required = True, location = "json")
         
         self.parser_put = reqparse.RequestParser()
-        self.parser_put.add_argument("comment", type = str, location = "form")
-        self.parser_put.add_argument("rating", type = int, location = "form")
+        self.parser_put.add_argument("comment", type = str, location = "json")
+        self.parser_put.add_argument("rating", type = int, location = "json")
         
-    def get(self,id):
-        review = ProdReview.query.get(id)
+    def get(self,review_id):
+        review = ProdReview.query.get(review_id)
         if not review:
             return {"message" : "Review not found."}, 404
         return marshal(review, prod_review_fields)
@@ -611,6 +676,10 @@ class ProdReviewAPI(Resource):
         if not prod:
             return {"message" : "Product not found."}, 404
         
+        already_reviewed = ProdReview.query.filter_by(user_id = current_user.id, product_id = prod_id).first()
+        if already_reviewed:
+            return {"message" : "You have already reviewed this product. You can try editing your exisiting review."}, 400
+
         prod_bought_by_user = False
         for order in current_user.orders:
             for item in order.items:
@@ -626,9 +695,9 @@ class ProdReviewAPI(Resource):
             return {"message" : "Invalid rating."}, 400
         
         if comment is None:
-            review = ProdReview(user_id = current_user.id, product_id = prod_id, rating = rating, reviewed_on = dt.now())
+            review = ProdReview(user_id = current_user.id, product_id = prod_id, rating = rating, reviewedOn = dt.now())
         else:
-            review = ProdReview(user_id = current_user.id, product_id = prod_id, comment = comment, rating = rating, reviewed_on = dt.now())
+            review = ProdReview(user_id = current_user.id, product_id = prod_id, comment = comment, rating = rating, reviewedOn = dt.now())
 
         try:
             db.session.add(review)
@@ -642,12 +711,12 @@ class ProdReviewAPI(Resource):
         
     @auth_required("token")
     @roles_required("cust")
-    def put(self,id):
-        review = ProdReview.query.get(id)
+    def put(self,review_id):
+        review = ProdReview.query.get(review_id)
         if not review or review.user != current_user:
             return {"message": "Review not found"}, 404
         
-        args = self.parser_post.parse_args()
+        args = self.parser_put.parse_args()
         comment = args.get("comment")
         rating = args.get("rating")
         if comment is None and rating is None:
@@ -667,20 +736,22 @@ class ProdReviewAPI(Resource):
             return {"message": "Something went wrong."}
 
 cart_item_fields = {
-    "id" : fields.Integer,
+    "item_id" : fields.Integer(attribute = "id"),
     "cart_id" : fields.Integer,
     "product_id" : fields.Integer(attribute = "product.id"),
+    "product_category" : fields.String(attribute= "product.category.name"),
     "product_name": fields.String(attribute= "product.name"),
     "product_img_path" : fields.String(attribute="product.img_path"),
     "mfd" : fields.String,
     "quantity" : fields.Integer,
+    "unit_description" : fields.String(attribute="product.unitDescription"),
     "price" : fields.Float,
     "availability_status" : fields.String
     # "discount" : fields.Integer 
 } 
 
 cart_fields = {
-    "id" : fields.Integer,
+    "cart_id" : fields.Integer(attribute = "id"),
     "user_id" : fields.Integer,
     "cart_total" : fields.Float,
     "items" : fields.Nested(cart_item_fields)
@@ -746,11 +817,11 @@ class CartAPI(Resource):
 class CartItemsAPI(Resource):
     def __init__(self):
         self.parser_post = reqparse.RequestParser()
-        self.parser_post.add_argument("stock_id", type = int, required = True, location = "form")
-        self.parser_post.add_argument("quantity", type = int, required = True, location = "form")
+        self.parser_post.add_argument("stock_id", type = int, required = True, location = "json")
+        self.parser_post.add_argument("quantity", type = int, required = True, location = "json")
 
         self.parser_put = reqparse.RequestParser()
-        self.parser_put.add_argument("quantity", type = int, required = True, location = "form")
+        self.parser_put.add_argument("quantity", type = int, required = True, location = "json")
 
     @auth_required("token")
     @roles_required("cust")
@@ -810,8 +881,7 @@ class CartItemsAPI(Resource):
             if item.product_id == stock.product_id:
                 qty_already_added = item.quantity
                 if (qty_already_added + qty) > 5:
-                    return {"message" : "You can buy maximum of 5 units.",
-                            "Quantity already in cart" : qty_already_added}, 400
+                    return {"message" : '''You can buy maximum of 5 units. Quantity already added: {}'''.format(qty_already_added)}, 400
                 item.quantity += qty
                 item.price = stock.price
                 item.mfd = stock.mfd
@@ -874,24 +944,29 @@ class CartItemsAPI(Resource):
 class ItemAmount(fields.Raw):
     def format(self,id):
         item = OrderItems.query.get(id)
-        amount = item.quantity*item.price*(1-0.01*item.discount)
+        if item.discount:
+            amount = item.quantity*item.price*(1-0.01*item.discount)
+        else:
+            amount = item.quantity*item.price
+
         return amount
 
 order_item_fields = {
-    "id" : fields.Integer,
+    "item_id" : fields.Integer(attribute = "id"),
     "order_id" : fields.Integer,
     "product_id" : fields.Integer(attribute = "product.id"),
     "product_name": fields.String,
+    "category_name":fields.String(attribute="product.category.name"),
     "product_img_path" : fields.String(attribute="product.img_path"),
     "quantity" : fields.Integer,
     "unitDescription" : fields.String,
     "price" : fields.Float,
     "amount" : ItemAmount(attribute = "id"),
-    "%_discount" : fields.Integer(attribute="discount")
+    "percent_discount" : fields.Integer(attribute="discount")
 } 
 
 order_fields = {
-    "id" : fields.Integer,
+    "order_id" : fields.Integer(attribute = "id"),
     "user_id" : fields.Integer,
     "order_total" : fields.Float,
     "status" : fields.String,
@@ -902,7 +977,7 @@ order_fields = {
 class OrderAPI(Resource):
     def __init__(self):
         self.parser = reqparse.RequestParser()
-        self.parser.add_argument("coupon_code", type = str, location = "form")
+        self.parser.add_argument("coupon_code", type = str, location = "json")
 
     @auth_required("token")
     @roles_required("cust")
@@ -1012,7 +1087,7 @@ api.add_resource(UserApi, "/user")
 api.add_resource(CategoryAPI,"/category","/category/<ctg_name>")
 api.add_resource(ProductAPI, "/<string:ctg>/products","/<string:ctg>/products/<string:prod>")
 api.add_resource(StockAPI, "/stock/<string:prod>", "/stock/<string:prod>/<int:stock_id>")
-api.add_resource(ProdReviewAPI, "/reviews","/reviews/<int:id>")
+api.add_resource(ProdReviewAPI, "/reviews","/reviews/<int:review_id>")
 api.add_resource(CartAPI, "/cart")
 api.add_resource(CartItemsAPI, "/cart/cart_items", "/cart/cart_items/<int:item_id>")
 api.add_resource(OrderAPI, "/order", "/order/<int:order_id>")
