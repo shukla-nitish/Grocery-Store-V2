@@ -1,7 +1,7 @@
 import matplotlib
 matplotlib.use('Agg')
-from flask import current_app as app, jsonify, request, render_template, send_from_directory
-from flask_security import auth_required, roles_required, current_user
+from flask import current_app as app, jsonify, request, render_template, send_from_directory,send_file
+from flask_security import auth_required, roles_required,roles_accepted, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_restful import marshal, reqparse
 from email_validator import validate_email
@@ -10,13 +10,12 @@ from datetime import timedelta
 import matplotlib.pyplot as plt
 import csv
 import os
-# from celery.result import AsyncResult
-# from .tasks import create_resource_csv
+from celery.result import AsyncResult
+from .tasks import create_sales_report
 from .models import *
 from .sec import datastore
 from.resources import product_fields, prod_review_fields,user_fields
 from .helpers import string_to_date
-
 
 @app.get("/")
 def home():
@@ -54,14 +53,7 @@ parser_mngr.add_argument("role", type = str, required = True, location = "json")
 @auth_required("token")
 @roles_required("admin")
 def get_mngrs():
-    manager_role = Role.query.filter_by(name = "mngr").first()
-    if not manager_role:
-        return {"message" : "Manager Role doesn't exist."},404
-    manager_ids = [roles_users.user_id for roles_users in RolesUsers.query.filter_by(role_id = manager_role.id).all()]
-    managers = []
-    for id in manager_ids:
-        manager = User.query.get(id)
-        managers.append(manager)
+    managers = User.query.filter(User.roles.any(Role.name == 'mngr')).all()
     if not managers:
         return {"message": "No managers found"}, 404
     else:
@@ -293,7 +285,7 @@ def cancel_ctg_delete(ctg_id):
         return {"message" : "something went wrong"} , 500
 
 @auth_required("token")
-@roles_required("admin","mngr")
+@roles_accepted("admin","mngr")
 @app.get("/summary")
 def summary_get():
     ctgs = Category.query.all()
@@ -305,7 +297,7 @@ def summary_get():
 
     total_cart_value = sum([cart.cart_total for cart in carts])
     total_sales = sum([order.order_total for order in orders])
-
+    # task = create_charts.delay()
     weekly_sales_revenue = dict()
     weekly_sales_volume = dict()
     for i in range(6,-1,-1):
@@ -362,50 +354,47 @@ def summary_get():
             "sales_trend_img_path" : "/static/sales_trend.png",
             "volume_trend_img_path" : "/static/volume_trend.png"}
 
+# @auth_required("token")
+# @roles_accepted("admin", "mngr")
+# @app.get('/get_charts/<task_id>')
+# def get_charts(task_id):
+#     res = AsyncResult(task_id)
+#     if res.ready():
+#         print("O am Ready")
+#         return res.result
+#     else:
+#         return jsonify({"message": "Task Pending"}), 404
+
 parser = reqparse.RequestParser()
 parser.add_argument("data", type = str, location = "json")
 
 @auth_required("token")
-@roles_required("admin", "mngr")
+@roles_accepted("admin", "mngr")
 @app.post("/summary")
 def summary_post():
     args = parser.parse_args()
     data = args.get("data")
 
     if data == "sales":
-        with open("sales.csv", "w", newline='') as file:
-            f = csv.writer(file, delimiter=',')
-            f.writerow(["Date", "User_id", "Order_id", "Item", "Description", "Quantity", "Unit", "Rate", "Discount", "Amount"])
-            orders = Order.query.all()
-            for order in orders:
-                for order_item in order.items:
-                    prod = Product.query.get(order_item.product_id)
-                    f.writerow([str(order.order_date), order.user_id, order.id, prod.name, prod.description, order_item.quantity, prod.unitDescription, order_item.price,order_item.discount, order_item.quantity*order_item.price*((1-order_item.discount*0.01) if order_item.discount else 1)])
-        return send_from_directory(".", "sales.csv", as_attachment=True)
+        task = create_sales_report.delay()
+        return {"task_id" : task.id}
                 
                 
     if data == "inventory":
-        with open("inventory.csv", "w", newline='') as file:
-            f = csv.writer(file, delimiter=',')
-            f.writerow(["Item", "Stock_id", "MFD", "Expiry Days", "Quantity", "Unit", "Rate"])
-            stocks = Stock.query.all()
-            for stock in stocks:
-                    prod = stock.product
-                    f.writerow([prod.name,stock.id,str(stock.mfd), stock.quantity,stock.expiry, prod.unitDescription, stock.price])
-
-        return send_from_directory(".", "inventory.csv", as_attachment=True)
+        task = create_sales_report.delay()
+        return {"task_id" : task.id}
 
 @auth_required("token")
-@roles_required("admin")
-@app.get("/manager_dashboard")
-def admin_get():
-    pass
+@roles_accepted("admin", "mngr")
+@app.get('/get_csv/<task_id>')
+def get_csv(task_id):
+    res = AsyncResult(task_id)
+    if res.ready():
+        filename = res.result
+        return send_file(filename, as_attachment=True)
+    else:
+        return jsonify({"message": "Task Pending"}), 404
 
-@auth_required("token")
-@roles_required("admin")
-@app.get("/admin_dashboard")
-def admin_post():
-    pass
 
 @app.get("/search/<string:search_key>")
 def search(search_key):        

@@ -3,6 +3,11 @@ import Navbar from "./components/Navbar.js"
 import Banner from "./components/Banner.js"
 import store from "./vuex.js"
 
+// router.beforeEach((to, from, next) => {
+//     if (to.name !== "Login"  && !localStorage.getItem("token") ? true : false)
+//         next({name : "Login"})
+//     else next()
+// });
 
 new Vue({
     el : "#app",

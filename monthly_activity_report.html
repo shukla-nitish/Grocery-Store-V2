@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hello {{user["name"]}}</title>
+  </head>
+  <body>
+    <div>
+        <p>Hello {{user["name"]}},</p>
+        <p>Your Monthly activity report</p>
+        <table class="table">
+            <thead>
+                <tr>
+                <th scope="col">Order Id</th>
+                <th scope="col">Order Date</th>
+                <th scope="col">Total Items</th>
+                <th scope="col">Order Total</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for order in user["orders"] %}
+                <tr>
+                    <td>{{order.id}}</td>
+                    <td>{{order.order_date|string|truncate(10, False, '', 0)}}</td>
+                    <td>{{order.items|length}}</td>
+                    <td>{{order.order_total}}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <p>There are new deals waiting for you.</p>
+        <p>Hope to see you tommorrow.</p>
+        <p></p>
+        <p>Best Wishes</p>
+        <p>GroceGalaxy Team</p>
+    </div>
+  </body>
+</html>

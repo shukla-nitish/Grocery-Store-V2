@@ -174,7 +174,7 @@ export default {
                             });
                             const stock_data = await res.json();
                             if(res.ok){
-                                $router.push(`/category/${this.prod_cred.category}`);
+                                this.$router.push(`/category/${this.prod_cred.category}`);
                                 console.log("prod_added");
                             }else{
                                 console.log(stock_data.message);

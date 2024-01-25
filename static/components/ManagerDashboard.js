@@ -58,7 +58,13 @@ export default {
         <div class="row justify-content-center p-2">
             <div class="col-3 text-center">
                 <span class="px-2">Inventory Data : </span>
-                <button @click="download('inventory')" class="btn btn-primary">Download as .csv</button>
+                <button @click="download('inventory')" class="btn btn-primary">Download as .csv </button>
+                
+            </div>
+        </div>
+        <div class="row justify-content-center p-2">
+            <div class="col-3 text-center">
+            <span v-if="isWaiting"> downloading...</span>
             </div>
         </div>
         <div class="p-5"></div>
@@ -67,6 +73,7 @@ export default {
     data(){
         return{
             summary:null,
+            isWaiting:false,
         }
     },
     async beforeMount(){
@@ -89,7 +96,8 @@ export default {
     },
     methods:{
         async download(data_type){
-            fetch("/summary",{
+            this.isWaiting = true
+            const res = await fetch("/summary",{
                 method: "POST",
                 headers:{
                     "Authentication-Token" : this.$store.getters.get_token,
@@ -98,19 +106,30 @@ export default {
                 },
                 body: JSON.stringify({"data" : data_type})
             })
-            .then(response => response.text())
-            .then(text => {
-            const blob = new Blob([text], { type: 'text/csv' });
-            const urlObject = URL.createObjectURL(blob);
-            const downloadAnchorElement = document.createElement('a');
-            downloadAnchorElement.href = urlObject;
-            downloadAnchorElement.download = `${data_type}.csv`;
-            document.body.appendChild(downloadAnchorElement);
-            downloadAnchorElement.click();
-            }).catch(err => {
-                console.error(err);
-                alert("Something went wrong.");
-            })
-        }
+            const data = await res.json();
+            if (res.ok){
+                const task_id = data.task_id
+                const intv = setInterval(async () => {
+                    const res = await fetch(`/get_csv/${task_id}`,{
+                        headers:{
+                            "Authentication-Token" : this.$store.getters.get_token,
+                        },
+                    })
+                    if (res.ok) {
+                        this.isWaiting = false
+                        clearInterval(intv)
+                        const data = res.text();
+                    
+                        const blob = new Blob([data], { type: 'text/csv' });
+                        const urlObject = URL.createObjectURL(blob);
+                        const downloadAnchorElement = document.createElement('a');
+                        downloadAnchorElement.href = urlObject;
+                        downloadAnchorElement.download = `${data_type}.csv`;
+                        document.body.appendChild(downloadAnchorElement);
+                        downloadAnchorElement.click();
+                    }
+                  }, 1000)
+            }
+        },
     }
 }

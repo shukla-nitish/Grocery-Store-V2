@@ -9,7 +9,6 @@ from .helpers import *
 from datetime import datetime as dt
 from datetime import timedelta
 
-
 api = Api(prefix= "/api")
 
 class UserRole(fields.Raw):
