@@ -5,10 +5,14 @@ export default {
             <div class="col-3 py-5">
             <form id="login" method="post" v-on:submit.prevent="login">
                 <h3 class="text-center pt-2 mb-1" v-if="invalid_input">Login</h3>
+                <h3 class="text-center pt-2 mb-1" v-else-if="account_deactivated">Login</h3>
                 <h3 class="text-center pt-2 mb-1 pb-4" v-else >Login</h3>
 
-                <p class="mb-0 mx-2 text-danger" v-if="invalid_input"><small>
+                <p class="mb-0 mx-2 text-danger text-center" v-if="invalid_input"><small>
                     Either email or password is incorrect. Please try again.
+                </small></p>
+                <p class="mb-0 mx-2 text-danger text-center" v-if="account_deactivated"><small>
+                    This account has been temporarily deactivated.
                 </small></p>
 
                 <div class="form-floating mb-3">
@@ -39,9 +43,10 @@ export default {
     data : function(){
         return{
             cred:{
-            email: null,
-            password: null,
+                email: null,
+                password: null,
             },
+            account_deactivated:false,
             invalid_input : false,
         }
     },
@@ -54,30 +59,30 @@ export default {
 
     methods :{
         async login(){
-            fetch("/user-login",{
-                method: "POST",
-                headers:{
-                    "Content-Type" : "application/json",
-                },
-                body: JSON.stringify(this.cred),
-            })
-            .then(response => {
-                const data = response.json();
-                if (!response.ok){
+            this.account_deactivated = false;
+            this.invalid_input = false;
+            try{
+                const response = await fetch("/user-login",{
+                    method: "POST",
+                    headers:{
+                        "Content-Type" : "application/json",
+                    },
+                    body: JSON.stringify(this.cred),
+                })
+                const data = await response.json();
+                if (response.status === 403){
+                    this.account_deactivated = true;
+                }else if (!response.ok){
                     this.invalid_input = true;
-                }
-                return data;
-            })
-            .then(data => {
-                if ("token" in data){
+                }else if ("token" in data){
                     this.$store.commit("set_user_cred", data)
                     this.$router.push("/");
+                }else{
+                    alert("something went wrong")
                 }
-                else{
-                    this.invalid_input = true;
-                }
-            })
-            .catch(err => console.log(err))
+            }catch(err){
+                console.error(err);
+            }
         }
     }
     

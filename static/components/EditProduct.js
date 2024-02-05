@@ -57,12 +57,12 @@ export default {
 
             <template v-for="stock,i in stocks">
                 <tr>
-                    <th scope="row">{{i+1}}</th>
-                    <td>{{stock.mfd.substring(0,10)}}</td>
-                    <td>{{stock.expiry_days}} Days</td>
-                    <td>{{stock.threshold}} Days</td>
-                    <td>{{stock.quantity}} {{prod.unitDescription}}</td>
-                    <td>&#8377 {{stock.price}}</td>
+                    <th :class="{'text-danger':!stock.saleable}" scope="row">{{i+1}}</th>
+                    <td :class="{'text-danger':!stock.saleable}">{{stock.mfd.substring(0,10)}}</td>
+                    <td :class="{'text-danger':!stock.saleable}">{{stock.expiry_days}} Days</td>
+                    <td :class="{'text-danger':!stock.saleable}">{{stock.threshold}} Days</td>
+                    <td :class="{'text-danger':!stock.saleable}">{{stock.quantity}} {{prod.unitDescription}}</td>
+                    <td :class="{'text-danger':!stock.saleable}">&#8377 {{stock.price}}</td>
                     <td>
                         <router-link :to="{path: '/'+ stock.category + '/' + stock.product +'/edit_stock/' + stock.stock_id}" class="col-2 me-3 p-0 mx-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit"><img style="width:18px;height:18px" src="/static/pen.svg" alt="Edit"></router-link>
                         <button class="btn btn-link p-0 m-0" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Delete">

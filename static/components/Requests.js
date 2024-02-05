@@ -224,6 +224,11 @@ export default {
                 if (res.ok){
                     this.$parent.forceRerender();
                     alert("Edits Cancelled!")
+                }else{
+                    console.log(data);
+                    if ("message" in data){
+                        alert(data.message);
+                    }
                 }
             }catch(err){
                 alert("Something went wrong. Try again.");

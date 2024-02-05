@@ -1,12 +1,9 @@
-# import matplotlib
-# matplotlib.use('Agg')
+
 from celery import shared_task
 from  .mail_service import send_message
 from jinja2 import Template
 from .models import *
 import csv
-# import os
-# import matplotlib.pyplot as plt
 from datetime import datetime as dt
 from datetime import timedelta
 
@@ -14,12 +11,11 @@ from datetime import timedelta
 def create_sales_report():
     with open("sales.csv", "w", newline='') as file:
         f = csv.writer(file, delimiter=',')
-        f.writerow(["Date", "User_id", "Order_id", "Item", "Description", "Quantity", "Unit", "Rate", "Discount", "Amount"])
+        f.writerow(["Date", "User_id", "Order_id", "Item", "Quantity", "Unit", "Rate", "Discount(in pct)", "Amount"])
         orders = Order.query.all()
         for order in orders:
             for order_item in order.items:
-                prod = Product.query.get(order_item.product_id)
-                f.writerow([str(order.order_date), order.user_id, order.id, prod.name, prod.description, order_item.quantity, prod.unitDescription, order_item.price,order_item.discount, order_item.quantity*order_item.price*((1-order_item.discount*0.01) if order_item.discount else 1)])
+                f.writerow([str(order.order_date), order.user_id, order.id, order_item.product_name, order_item.quantity, order_item.unitDescription, order_item.price,order_item.discount, order_item.quantity*order_item.price*((1-order_item.discount*0.01) if order_item.discount else 1)])
     
     return "sales.csv"
 
@@ -27,11 +23,11 @@ def create_sales_report():
 def create_inventory_report():
     with open("inventory.csv", "w", newline='') as file:
         f = csv.writer(file, delimiter=',')
-        f.writerow(["Item", "Stock_id", "MFD", "Expiry Days", "Quantity", "Unit", "Rate"])
+        f.writerow(["Stock_id","Product_id", "Product Name", "MFD", "Expiry Date", "Threshold(in days)", "Quantity", "Unit", "Rate", "Saleable"])
         stocks = Stock.query.all()
         for stock in stocks:
             prod = stock.product
-            f.writerow([prod.name,stock.id,str(stock.mfd), stock.quantity,stock.expiry, prod.unitDescription, stock.price])
+            f.writerow([stock.id, stock.product_id, prod.name, str(stock.mfd)[:10], str(stock.mfd + timedelta(days = stock.expiry))[:10],stock.threshold, stock.quantity, prod.unitDescription, stock.price, stock.saleable])
 
     return "inventory.csv"
 
@@ -90,15 +86,6 @@ def create_inventory_report():
 #         return {"sales_img_path" : "/static/sales_trend.png",
 #             "volume_img_path" : "/static/volume_trend.png"}
 
-# @shared_task(ignore_result=True)
-# def daily_reminder(to, subject):
-#     users = User.query.filter(User.roles.any(Role.name == 'admin')).all()
-#     for user in users:
-#         with open('test.html', 'r') as f:
-#             template = Template(f.read())
-#             send_message(user.email, subject,template.render(email=user.email))
-#     return "OK"
-
 @shared_task(ignore_result=True)
 def daily_customer_reminder(to,subject):
     customers = User.query.filter(User.roles.any(Role.name == 'cust')).all()
@@ -123,7 +110,6 @@ def daily_customer_reminder(to,subject):
 def monthly_activity_report(to,subject):
     customers = User.query.filter(User.roles.any(Role.name == 'cust')).all()
     users = []
-    # {customer: [{order_id, order_date, total items bought, ordertotal}]}
     for customer in customers:
         d={}
         d["name"] = customer.name

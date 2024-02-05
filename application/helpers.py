@@ -44,6 +44,8 @@ def saleable_stock(prod): #prod is a product object
 
             if saleable_date < dt.now():
                 stock.saleable = False
+            if saleable_date > dt.now():
+                stock.saleable = True
             if expiry_date < dt.now() or stock.quantity <= 0:
                 db.session.delete(stock)
                 

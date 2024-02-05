@@ -5,7 +5,7 @@ export default {
             <p class="navbar-brand h3 me-0 mb-0 ms-5">Welcome</p>
 
             <div class="collapse navbar-collapse justify-content-end" id="navbarSupportedContent">
-                <form class="d-flex mx-auto" role="search" v-on:submit.prevent="search" method="post" v-if="$route.path =='/'">
+                <form class="d-flex mx-auto" role="search" v-on:submit.prevent="search" method="post" v-if="$route.path =='/' && role!= 'admin'">
                     <input class="form-control " type="search" placeholder="Search for products" aria-label="Search" v-model="search_key" required>
                     <button class="btn btn-link" type="submit">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-search" alt= "search" viewBox="0 0 16 16">
@@ -27,7 +27,7 @@ export default {
                                 <li><button type="button" class="btn btn-link dropdown-item" data-bs-toggle="modal" data-bs-target="#confirmationModal">Delete Account</button></li>
                             </template>
 
-                            <li v-else-if= "role=='mngr'"><router-link class="dropdown-item" to="/manager_dashboard">Dashboard</router-link></li>
+                            <li v-else-if= "role=='mngr' && $route.path!='/manager_dashboard'"><router-link class="dropdown-item" to="/manager_dashboard">Dashboard</router-link></li>
 
                             <li v-if="role=='admin' && $route.path!='/requests'""><router-link class="dropdown-item" to="/requests">Requests</router-link></li>
                             <li v-if="role=='admin' && $route.path!='/managers'""><router-link class="dropdown-item" to="/managers">Managers</router-link></li>

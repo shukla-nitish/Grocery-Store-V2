@@ -148,8 +148,10 @@ export default {
             if (res.ok){
                 this.prod=prod_data;
             }else{
-                console.log(prod_data.message);
-                alert(prod_data.message);
+                console.log(prod_data);
+                if("message" in data){
+                    alert(prod_data.message);
+                }
             }
         }catch(err){
             console.error(err);
@@ -163,9 +165,6 @@ export default {
                     this.reviews=review_data;
                 }else{
                     console.log(review_data);
-                    if("message" in review_data){
-                        alert(review_data.message)
-                    }
                 }
             }catch(err){
                 console.error(err);
@@ -182,9 +181,6 @@ export default {
                     this.user_review =user_review_data;
                 }else{
                     console.log(user_review_data);
-                    if("message" in user_review_data){
-                        alert(user_review_data.message)
-                    }
                 }
             }catch(err){
                 console.error(err);

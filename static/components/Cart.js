@@ -28,10 +28,10 @@ export default {
                                 <div class="col-6 my-auto ps-0 a" style="word-wrap:break-word"><router-link class="link-dark link-underline-opacity-0" :to="{path: '/' + item.product_category + '/' + item.product_name}">{{item.product_name}}</router-link></div>
                             </div>
                         </div>
-                        <div v-if="!editing_qty" class="col-2 my-auto text-center">
+                        <div v-if="!editing_qty|| editing_item_id !== item.item_id" class="col-2 my-auto text-center">
                             <p class="my-auto"><small>{{item.quantity}} {{item.unit_description}}</small></p>
                         </div>
-                        <div v-else class="col-2 my-auto text-center">
+                        <div v-if="editing_item_id === item.item_id" class="col-2 my-auto text-center">
                             <input type="number" class="form-control" min="1" max="5" value="1" v-model="edited_qty">
                         </div>
                         <template v-if="item.availability_status=='in-stock'">
@@ -55,8 +55,8 @@ export default {
                             <p class="text-danger my-auto"><small>Out Of Stock</small></p>
                         </div>
                         <div class="col-2 m-0 p-0 mx-auto d-flex gap-3">
-                            <button @click="edit_quantity" v-if="item.availability_status!='out-of-stock' && !editing_qty" class="btn btn-link" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit Qty"><img style="width:18px;height:18px" src="/static/pen.svg" alt="Edit Qty"></button>
-                            <button @click="save_quantity(item.item_id)" v-if="item.availability_status!='out-of-stock' && editing_qty" class="btn btn-link link-underline link-underline-opacity-0 text-success">Save</button>
+                            <button @click="edit_quantity(item.item_id)" v-if="item.availability_status!='out-of-stock' && (!editing_qty|| editing_item_id !== item.item_id)" class="btn btn-link" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Edit Qty"><img style="width:18px;height:18px" src="/static/pen.svg" alt="Edit Qty"></button>
+                            <button @click="save_quantity(item.item_id)" v-if="item.availability_status!='out-of-stock' && editing_qty && editing_item_id === item.item_id" class="btn btn-link link-underline link-underline-opacity-0 text-success">Save</button>
                             <button @click="delete_item(item.item_id)" class="btn btn-link" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Remove"><img style="width:18px;height:18px" src="/static/x-circle.svg" alt="Remove"></button>
                         </div>
                     </div>
@@ -89,6 +89,7 @@ export default {
             cart_is_empty:false,
             discount:null,
             editing_qty:false,
+            editing_item_id:null,
             edited_qty:null,
             coupon_code:null,
         }
@@ -140,11 +141,13 @@ export default {
         }
     },
     methods:{
-        edit_quantity(){
+        edit_quantity(item_id){
             this.editing_qty=true;
+            this.editing_item_id = item_id;
         },
         async save_quantity(item_id){
             this.editing_qty=false;
+            this.editing_item_id = null;
             if(this.edited_qty<1 || this.edited_qty>5){
                 alert("Quantity should be in between 1 and 5.");
             }else{

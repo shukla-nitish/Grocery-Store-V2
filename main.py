@@ -22,24 +22,17 @@ def create_app():
 app, datastore = create_app()
 celery_app = celery_init_app(app)
 
-# @celery_app.on_after_configure.connect
-# def send_email(sender, **kwargs):
-#     sender.add_periodic_task(
-#         crontab(hour=14, minute=26, day_of_month=25),
-#         daily_reminder.s('client@email.com', 'Daily Test'),
-#     )
-
 @celery_app.on_after_configure.connect
 def customer_email_daily(sender, **kwargs):
     sender.add_periodic_task(
-        crontab(hour=16, minute=59, day_of_month=25),
+        crontab(hour=23, minute=1),
         daily_customer_reminder("dummy@email.com","GroceGalaxy Daily Reminder!"),
     )
 
 @celery_app.on_after_configure.connect
 def customer_email_monthly(sender, **kwargs):
     sender.add_periodic_task(
-        crontab(hour=16, minute=59, day_of_month=25),
+        crontab(hour=23, minute=3, day_of_month=25),
         monthly_activity_report.s("dummy@email.com","GroceGalaxy Monthly Report!"),
     )
 import application.views

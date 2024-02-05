@@ -1,3 +1,3 @@
-Date,User_id,Order_id,Item,Description,Quantity,Unit,Rate,Discount,Amount
-2024-01-25 12:08:21.468872,3,1,Carrot,fresh carrots,3,kg,40.0,20,96.0
-2024-01-25 16:27:46.371409,3,2,Carrot,fresh carrots,2,kg,40.0,,80.0
+Date,User_id,Order_id,Item,Quantity,Unit,Rate,Discount(in pct),Amount
+2024-01-25 12:08:21.468872,3,1,Carrot,3,kg,40.0,20,96.0
+2024-01-25 16:27:46.371409,3,2,Carrot,2,kg,40.0,,80.0

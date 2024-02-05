@@ -87,8 +87,9 @@ export default {
                                 <button type="submit" value = "Submit Request" :class="add_button_class">Add</button>
                             </div>
                         </form>
-                        <p v-if="prod.available_quantity==0" class="text-danger"><small>Out of Stock</small></p>
                     </template>
+                        <p v-if="prod.available_quantity==0" class="text-danger"><small>Out of Stock</small></p>
+                    
 
                     <router-link v-if="role=='mngr'" class="btn btn-outline-primary" :to="{path:'/'+ prod.category + '/product/' + prod.name + '/edit'}">Edit</router-link>
 

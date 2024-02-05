@@ -618,6 +618,7 @@ class StockAPI(Resource):
         
         try:
             db.session.commit()
+            saleable_stock(product)
             return {"message" : "stock updated successfully."}
         except:
             return {"message" : "something went wrong"}, 500

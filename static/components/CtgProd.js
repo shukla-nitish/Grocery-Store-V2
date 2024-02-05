@@ -87,15 +87,16 @@ export default {
                                             <label for="qty" class="col-form-label">Qty.</label>
                                         </div>
                                         <div class="col-5">
-                                            <input type="number" id="qty" class="form-control" name = "quantity" min="1" max="5" value="1" v-model="quantity">
+                                            <input type="number" class="form-control" name = "quantity" min="1" max="5" value="1" v-bind="quantity">
                                         </div>
                                         
                                         <div class="col-5">
-                                            <button type="submit" value = "Submit Request" :class="add_button_class">Add</button>
+                                            <button type="submit" :id="obj.prods[j-1].stock_id" value = "Submit Request" class="btn btn-outline-primary">Add</button>
                                         </div>
                                     </form>
-                                    <p v-if="obj.prods[j-1].available_quantity==0" class="text-danger"><small>Out of Stock</small></p>
                                 </template>
+                                <p v-if="obj.prods[j-1].available_quantity==0" class="text-danger"><small>Out of Stock</small></p>
+                                
 
                                 <router-link v-if="role=='mngr'" class="btn btn-outline-primary" :to="{path:'/'+ obj.ctg.name + '/product/' + obj.prods[j-1].name + '/edit'}">Edit</router-link>
                 
@@ -117,7 +118,7 @@ export default {
     data(){
         return{
             ctg_products : [],
-            quantity : 0,
+            quantity : 1,
             add_button_class:"btn btn-outline-primary"
         };
     },
@@ -148,7 +149,6 @@ export default {
                         alert("something went wrong.");
                     }
                 }
-                // this.$store.commit("update_ctg_products", this.ctg_products);
             }else{
                 console.log(ctg_data.message);
             }
@@ -170,7 +170,9 @@ export default {
     
     methods:{
         async add_to_cart(stock_id){
-            if(this.quantity){
+            if(this.$store.getters.get_role !== "cust"){
+                this.$router.push("/login")
+            }else if(this.quantity){
                 const cart_item = {"stock_id":stock_id, "quantity": this.quantity};
                 try{
                     const res = await fetch(`/api/cart/cart_items`,{
@@ -185,7 +187,8 @@ export default {
                     const data = await res.json();
                     
                     if (res.ok){
-                        this.add_button_class="btn btn-success";
+                        const btn = document.getElementById(stock_id)
+                        btn.className = "btn btn-success"
                         console.log(data.message);
                     }else{
                         console.log(data.message);

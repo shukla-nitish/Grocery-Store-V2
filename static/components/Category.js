@@ -91,8 +91,9 @@ export default {
                                         <button type="submit" value = "Submit Request" :class="add_button_class">Add</button>
                                     </div>
                                 </form>
-                                <p v-if="products[j-1].available_quantity==0" class="text-danger"><small>Out of Stock</small></p>
                             </template>
+                            <p v-if="products[j-1].available_quantity==0" class="text-danger"><small>Out of Stock</small></p>
+                            
 
                             <router-link v-if="role=='mngr'" class="btn btn-outline-primary" :to="{path:'/'+ category.name + '/product/' + products[j-1].name + '/edit'}">Edit</router-link>
             
@@ -165,7 +166,9 @@ export default {
     },
     methods:{
         async add_to_cart(stock_id){
-            if(this.quantity){
+            if(this.$store.getters.get_role !== "cust"){
+                this.$router.push("/login")
+            }else if(this.quantity){
                 const cart_item = {"stock_id":stock_id, "quantity": this.quantity};
                 try{
                     const res = await fetch(`/api/cart/cart_items`,{

@@ -118,7 +118,7 @@ export default {
                     if (res.ok) {
                         this.isWaiting = false
                         clearInterval(intv)
-                        const data = res.text();
+                        const data = await res.text();
                     
                         const blob = new Blob([data], { type: 'text/csv' });
                         const urlObject = URL.createObjectURL(blob);
@@ -127,6 +127,8 @@ export default {
                         downloadAnchorElement.download = `${data_type}.csv`;
                         document.body.appendChild(downloadAnchorElement);
                         downloadAnchorElement.click();
+                        URL.revokeObjectURL(urlObject);
+                        downloadAnchorElement.remove();
                     }
                   }, 1000)
             }

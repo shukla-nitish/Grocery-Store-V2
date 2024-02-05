@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import csv
 import os
 from celery.result import AsyncResult
-from .tasks import create_sales_report
+from .tasks import create_sales_report, create_inventory_report
 from .models import *
 from .sec import datastore
 from.resources import product_fields, prod_review_fields,user_fields
@@ -32,6 +32,8 @@ def user_login():
 
     if not user:
         return jsonify({"message": "User with specified email not found."}), 404
+    if not user.is_active:
+        return jsonify({"message" : "Your account has been deactivated."}), 403
 
     if check_password_hash(user.password, data.get("password")):
         return jsonify({"token": user.get_auth_token(),
@@ -227,7 +229,7 @@ def cancel_ctg_edit(ctg_id):
         ctg.edited_name = ""
         try:
             if ctg.edited_img_path:
-                img_path = ctg.img_path
+                img_path = ctg.edited_img_path
                 cwd = os.getcwd()
                 cwd = cwd.replace("\\","/")
                 path = cwd+img_path
@@ -381,7 +383,7 @@ def summary_post():
                 
                 
     if data == "inventory":
-        task = create_sales_report.delay()
+        task = create_inventory_report.delay()
         return {"task_id" : task.id}
 
 @auth_required("token")
